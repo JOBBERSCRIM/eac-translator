@@ -1,3 +1,15 @@
+---
+title: EAC Translator
+emoji: 🌍
+colorFrom: indigo
+colorTo: green
+sdk: gradio
+sdk_version: "5.35.0"
+app_file: app.py
+pinned: false
+license: mit
+---
+
 # 🌍 EAC Translator
 
 A multilingual translator for English, French, and Swahili with voice input and output. Built with ❤️ by [Eng. Jobbers – Qtrinova Inc](https://eng-jobbers.vercel.app/).
@@ -14,13 +26,13 @@ A multilingual translator for English, French, and Swahili with voice input and 
 
 ## 🚀 Built With
 
-- [Gradio](https://gradio.app)
-- [Hugging Face Transformers](https://huggingface.co/transformers/)
-- [pyttsx3](https://pypi.org/project/pyttsx3/)
-- [SpeechRecognition](https://pypi.org/project/SpeechRecognition/)
-- [langid](https://pypi.org/project/langid/)
+- Gradio
+- Hugging Face Transformers
+- pyttsx3
+- SpeechRecognition
+- langid
 
-## 📦 Installation (Optional for Local Use, especially VScode env setup, well tested)
+## 📦 Installation (Optional for Local Use)
 
 ```bash
 pip install -r requirements.txt
