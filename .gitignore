@@ -1,0 +1,15 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Audio output
+*.wav
+
+# Virtual environments
+venv/
+env/
+opus-env/
+
+# System files
+.DS_Store
+Thumbs.db

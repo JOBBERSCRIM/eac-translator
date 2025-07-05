@@ -1,0 +1,9 @@
+gradio==5.35.0
+transformers==4.53.0
+torch==2.7.1
+sentencepiece==0.2.0
+langid
+speechrecognition
+pydub
+pyttsx3
+sacremoses
