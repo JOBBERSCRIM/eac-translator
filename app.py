@@ -3,12 +3,12 @@ from transformers import MarianMTModel, MarianTokenizer
 from datetime import datetime
 import langid
 import os
-import pyttsx3
-import time
+import requests
+import base64
+import tempfile
 import warnings
 
 warnings.filterwarnings("ignore", message="Recommended: pip install sacremoses.")
-os.environ["PATH"] += os.pathsep + r"C:\ffmpeg\bin"
 langid.set_languages(['en', 'fr', 'sw'])
 
 MODEL_MAP = {
@@ -46,11 +46,11 @@ def translate(text, direction, tone):
     expected_src = direction.split(" → ")[0].lower()
     warning = ""
     if expected_src.startswith("english") and detected_lang != "en":
-        warning = f"⚠️ Detected language is '{detected_lang}', but you selected English as source."
+        warning = f"⚠ Detected language is '{detected_lang}', but you selected English as source."
     elif expected_src.startswith("french") and detected_lang != "fr":
-        warning = f"⚠️ Detected language is '{detected_lang}', but you selected French as source."
+        warning = f"⚠ Detected language is '{detected_lang}', but you selected French as source."
     elif expected_src.startswith("swahili") and detected_lang != "sw":
-        warning = f"⚠️ Detected language is '{detected_lang}', but you selected Swahili as source."
+        warning = f"⚠ Detected language is '{detected_lang}', but you selected Swahili as source."
 
     prompt = TONE_MODIFIERS[tone] + text
     model_info = MODEL_MAP[direction]
@@ -77,23 +77,31 @@ def translate(text, direction, tone):
 
     return f"{warning}\n{translation}" if warning else translation
 
-engine = pyttsx3.init()
-voices = engine.getProperty('voices')
-voice_names = [voice.name for voice in voices]
+# TTS using Hugging Face Inference API
+def tts_via_api(text):
+    api_token = os.getenv("HUGGINGFACEHUB_API_TOKEN")
+    if not api_token:
+        return None
 
-def speak_text_to_file(text, voice_name):
-    try:
-        engine = pyttsx3.init()
-        engine.setProperty('rate', 150)
-        for voice in voices:
-            if voice.name == voice_name:
-                engine.setProperty('voice', voice.id)
-                break
-        output_path = "tts_output.wav"
-        engine.save_to_file(text, output_path)
-        engine.runAndWait()
-        return output_path
-    except Exception:
+    headers = {
+        "Authorization": f"Bearer {api_token}"
+    }
+
+    payload = {
+        "inputs": text
+    }
+
+    response = requests.post(
+        "https://api-inference.huggingface.co/models/microsoft/speecht5_tts",
+        headers=headers,
+        json=payload
+    )
+
+    if response.status_code == 200:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+            tmp.write(response.content)
+            return tmp.name
+    else:
         return None
 
 def transcribe_and_translate(audio_path, direction, tone):
@@ -103,11 +111,11 @@ def transcribe_and_translate(audio_path, direction, tone):
         with sr.AudioFile(audio_path) as source:
             audio = recognizer.record(source)
         if len(audio.frame_data) < 10000:
-            return "⚠️ Audio too short or empty. Please try again."
+            return "⚠ Audio too short or empty. Please try again."
         text = recognizer.recognize_google(audio)
         return translate(text, direction, tone)
     except Exception as e:
-        return f"⚠️ Could not transcribe audio: {e}"
+        return f"⚠ Could not transcribe audio: {e}"
 
 with gr.Blocks(theme=gr.themes.Soft()) as demo:
     gr.Markdown("## 🌍 EAC Translator")
@@ -120,33 +128,31 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                 direction = gr.Dropdown(choices=list(MODEL_MAP.keys()), label="Translation Direction", value="English → Swahili")
                 tone = gr.Radio(choices=list(TONE_MODIFIERS.keys()), label="Tone", value="Neutral")
                 output_text = gr.Textbox(label="Translated Text", lines=3)
-                voice_choice = gr.Dropdown(choices=voice_names, label="Voice for Playback", value=voice_names[0])
                 with gr.Row():
                     translate_btn = gr.Button("Translate", scale=1)
-                    speak_btn = gr.Button("🔊 Listen to Translation", scale=1)
+                    speak_btn = gr.Button("🔊 Speak Translation", scale=1)
                 audio_output = gr.Audio(label="Playback", interactive=False)
 
-        with gr.Tab("🎙️ Voice Translation"):
+        with gr.Tab("🎙 Voice Translation"):
             with gr.Column():
                 audio_input = gr.Audio(sources=["microphone"], type="filepath", label="Speak Now")
                 direction_voice = gr.Dropdown(choices=list(MODEL_MAP.keys()), label="Translation Direction", value="English → Swahili")
                 tone_voice = gr.Radio(choices=list(TONE_MODIFIERS.keys()), label="Tone", value="Neutral")
                 voice_output = gr.Textbox(label="Translated Text")
-                voice_choice2 = gr.Dropdown(choices=voice_names, label="Voice for Playback", value=voice_names[0])
                 with gr.Row():
                     voice_translate_btn = gr.Button("Transcribe & Translate", scale=1)
-                    voice_speak_btn = gr.Button("🔊 Listen to Translation", scale=1)
+                    voice_speak_btn = gr.Button("🔊 Speak Translation", scale=1)
                 audio_output2 = gr.Audio(label="Playback", interactive=False)
 
         translate_btn.click(fn=translate, inputs=[input_text, direction, tone], outputs=output_text)
-        speak_btn.click(fn=speak_text_to_file, inputs=[output_text, voice_choice], outputs=audio_output)
+        speak_btn.click(fn=tts_via_api, inputs=[output_text], outputs=audio_output)
         voice_translate_btn.click(fn=transcribe_and_translate, inputs=[audio_input, direction_voice, tone_voice], outputs=voice_output)
-        voice_speak_btn.click(fn=speak_text_to_file, inputs=[voice_output, voice_choice2], outputs=audio_output2)
+        voice_speak_btn.click(fn=tts_via_api, inputs=[voice_output], outputs=audio_output2)
 
     gr.Markdown(
         """<div style='text-align: center;'>
         <a href='https://eng-jobbers.vercel.app/' target='_blank' style='text-decoration: none; font-weight: bold;'>
-        By Eng. Jobbers – Qtrinova Inc. NLP❤️
+        Built with ❤ by Eng. Jobbers – Qtrinova Inc
         </a>
         </div>""",
         elem_id="footer"

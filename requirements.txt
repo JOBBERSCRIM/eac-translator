@@ -5,5 +5,4 @@ sentencepiece==0.2.0
 langid
 speechrecognition
 pydub
-pyttsx3
 sacremoses
